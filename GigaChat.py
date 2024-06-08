@@ -49,7 +49,7 @@ class GigaChat:
           "messages": [
             {
               "role": "system",
-              "content": system_promt,
+              "content": system_prompt,
             },
             {
               "role": "user",
