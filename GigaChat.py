@@ -37,7 +37,7 @@ class GigaChat:
         if (now - self.iam_token_time)/pd.Timedelta(minutes=1)>20:
             self._update_iam_token()
 
-    def generate(self, system_promt, user_prompt, gen_params = {}, model = "GigaChat-Pro"):
+    def generate(self, system_prompt, user_prompt, gen_params = {}, model = "GigaChat-Pro"):
         self._check_iam_token()
         headers = {
           'Content-Type': 'application/json',
