@@ -59,7 +59,7 @@ class GigaChat:
             },
           ],
         })
-        for k,v in gen_params:
+        for k,v in gen_params.items():
             payload[k] = v
 
         try:
@@ -70,7 +70,6 @@ class GigaChat:
             print(response)
             raise
             
-
 
     def get_embedding(self, docs: list):
         self._check_iam_token()
