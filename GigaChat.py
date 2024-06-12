@@ -68,6 +68,7 @@ class GigaChat:
             return msg
         except:
             print(response)
+            print(response.text)
             raise
             
 
@@ -93,4 +94,5 @@ class GigaChat:
             return embeddings
         except:
             print(response)
+            print(response.text)
             raise
