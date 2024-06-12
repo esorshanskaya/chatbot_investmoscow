@@ -1,4 +1,6 @@
 import numpy as np
+import re
+
 
 class MaintenanceAssistant():
     def __init__(self, prompt_dict, model, service_data):
@@ -82,7 +84,7 @@ class MaintenanceAssistant():
     
     def __convert_class(self,ans, negative_class):
         try:
-            cls = int(ans[0])
+            cls =  int(re.match(r'^\d+', ans).group())
             return cls if cls != negative_class else -1
         except Exception:
             return -1
