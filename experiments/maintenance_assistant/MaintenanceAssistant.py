@@ -1,3 +1,5 @@
+import numpy as np
+
 class MaintenanceAssistant():
     def __init__(self, prompt_dict, model, service_data):
         #LLM
@@ -10,7 +12,7 @@ class MaintenanceAssistant():
         # общий классификатор по разделам
         self.system_prompt_classification = prompt_dict['general_classification']
         # ОКВЭД/виды бизнеса
-        self.system_prompt_business_classification = prompt_dict['business_classification'].format(okved = list(okved_dict.keys()))
+        self.system_prompt_business_classification = prompt_dict['business_classification'].format(okved = list(self.okved_dict.keys()))
         #Конкретная мера поддержки
         self.system_prompt_service_classification = prompt_dict['service_classification'].format(names = self.names)
         self.system_prompt_service_information = prompt_dict['service_information']
@@ -92,6 +94,7 @@ class MaintenanceAssistant():
                 if okved in row['ОКВЭД']:
                     target_list.append(idx)
             return target_list
+        okved_list = np.unique([okved_ for x in self.service_data['ОКВЭД'].apply(lambda x: x.split(';')).values for okved_ in x])
         
         self.service_data['ОКВЭД'] = self.service_data['ОКВЭД'].str.replace('\xa0',' ').str.replace('газом и паром;','газом и паром,')\
             .str.replace('офисов;','офисов,').str.replace('Сбор, обработка и утилизация отходов;','Сбор, обработка и утилизация отходов,')\
