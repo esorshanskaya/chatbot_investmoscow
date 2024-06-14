@@ -170,6 +170,52 @@ class RAG_Classifier(Node):
         self._add_child(child, default_child_key)
 
 
+class Dim_Search_Land(Node):
+    
+    def __init__(self, dim: pd.DataFrame, description: str):
+        super().__init__(gc=None, description=description)
+        self.description = description
+        self.dim = dim.copy()
+        self._type = 'dim_search'
+
+    def run(self, data):
+        child_node = self.childs.get(default_child_key, None)
+        dim_filtered = self._filter(data)
+        req_answer = self._generate_answer(dim_filtered)
+        return {"req_answer": req_answer, "child_node": child_node}
+
+    def _filter(self, data):
+        # Search by codes
+        codes = data['Тип деятельности бизнеса']
+        df = self.dim
+        boolean_flag = pd.Series([False]*len(df))
+        for i in codes:
+            boolean_flag = boolean_flag | df['Перечень видов экономической деятельности, возможных к реализации на площадке'].str.contains(str(i))
+        df = df.loc[boolean_flag]
+        return df
+
+    def _generate_answer(self, dim_filtered):
+        if len(dim_filtered)==0:
+            msg = "К сожалению под ваш запрос не нашлось возможных вариантов аренды."
+        else:
+            df_tmp = dim_filtered[['Название площадки', 
+                 'Ссылка на форму подачи заявки', 
+                 'Свободная площадь здания, сооружения, помещения, кв. м']]\
+                        .drop_duplicates().sample(min(3, len(dim_filtered)))
+            msg = 'Возможно вас заинтересуют следующие варианты: "\n'
+            for n, i in df_tmp.reset_index(drop=True).iterrows():
+                msg += f"{n+1}): {i['Название площадки']}; Стоимость, руб./год за кв.м.: {i['Свободная площадь здания, сооружения, помещения, кв. м']}; "
+                msg += f"Ссылка на форму подачи заявки: {i['Ссылка на форму подачи заявки']}\n"
+            msg += '\nСрок рассмотрения заявки физических лиц не превышает 14 календарных дней.\n'
+            msg += 'Срок рассмотрения заявки юридических лиц и индивидуальных предпринимателей не превышает 30 календарных дней.\n'
+        return msg    
+
+    def add_child(self, child):
+        if len(self.childs)==0:
+            self._add_child(child, default_child_key)
+        else:
+            raise Exception("For generator node only 1 child allowed")
+
 
 def get_dialog_tree(node_dict, gc):
     
@@ -203,8 +249,12 @@ def get_dialog_tree(node_dict, gc):
                              top_n=node_dict.get('top_n'),
                              key=node_dict.get('key'),
                              description=node_dict.get('description'))
+    elif node_dict['type']==Dim_Search_Land:
+        node = Dim_Search_Land(dim=node_dict.get('dim'),
+                             description=node_dict.get('description'))
+        
     else:
-        raise Exception(f"Unknown type of Node: {type(node_dict['type'])}")
+        raise Exception(f"Unknown type of Node: {node_dict['type']}, {type(node_dict['type'])}")
         
     if node_dict['type'] in [LLM_Classifier, LLM_Extractor]:
         for child_key, child_node_dict in node_dict['childs'].items():
