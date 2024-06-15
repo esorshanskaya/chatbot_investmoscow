@@ -18,7 +18,7 @@ git clone https://github.com/esorshanskaya/hackathon_0624.git
 cd hackathon_0624
 ```
 
-Для Gigachat нужно создать файл ```.env``` и добавить туда строчку ```AUTH_TOKEN = <Ваш Gigachat OAuth токен>```. Так же опционально можно указать HOST, если он отличен от localhost.
+Для Gigachat нужно создать файл ```.env``` и добавить туда строчку ```AUTH_TOKEN = <Ваш Gigachat OAuth токен>```. Так же опционально можно указать ```HOST```, если он отличен от localhost.
 
 Для запуска сервиса нужно выполнить следующую команду.
 
