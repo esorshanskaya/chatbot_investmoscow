@@ -6,6 +6,8 @@ import json
 import os
 import chromadb
 sys.path.append('../')
+sys.path.append('./')
+print(sys.path)
 from GigaChat import GigaChat
 import dotenv
 
@@ -20,7 +22,7 @@ auth_token = os.environ.get('AUTH_TOKEN')
 gc = GigaChat(auth_token = auth_token)
 
 
-df_cl = pd.read_hdf('df_okved_with_embs.h5', key='df')
+df_cl = pd.read_hdf('rag_db/df_okved_with_embs.h5', key='df')
 
 for n, i in df_cl.iterrows():
     collection.add(documents=[i['text']],
