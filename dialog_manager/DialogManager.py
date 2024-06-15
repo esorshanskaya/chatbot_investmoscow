@@ -36,7 +36,7 @@ class DialogSession:
             node_data = node.run(self.data)
             print(f"{node}: {node_data}")
 
-            if node_type in [LLM_Generator, Dim_Search_Land]:
+            if node_type in [LLM_Generator, Dim_Search_Land, MaintenanceAssistant_Node]:
                 req_answer = node_data['req_answer']
                 self.history.append({"user_type": "ai", "msg": req_answer})
             if node_type == LLM_Extractor:
@@ -51,7 +51,7 @@ class DialogSession:
         
         return req_answer
         
-    def get_last_n_message(self, n_last=3):
+    def get_last_n_message(self, n_last=2):
         last_slice_msg = ''
         for i in self.history[-2*n_last:]:
             if i['user_type'] == 'user':

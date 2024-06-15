@@ -5,6 +5,7 @@ import GigaChat
 import traceback
 import json
 import pandas as pd
+from MaintenanceAssistant import MaintenanceAssistant
 
 class Node():
     def __init__(self, gc: GigaChat, description = "", required_answer=False, key=""):
@@ -113,8 +114,13 @@ class LLM_Extractor(Node):
     def extract(self, req):
         ans = self.gc.generate(system_prompt=self.system_prompt, user_prompt=req)
         unparsed_enities = []
+        
         try:
             ans = json.loads(ans.replace("'", '"'))
+            # Work around for rent
+            if 'Тип деятельности бизнеса' in ans and 'аренда' in ans['Тип деятельности бизнеса'].lower():
+                del ans['Тип деятельности бизнеса']
+                
         except Exception as e:
             print(f"Error on parsing: {ans}")
             print(traceback.format_exc())
@@ -217,6 +223,29 @@ class Dim_Search_Land(Node):
             raise Exception("For generator node only 1 child allowed")
 
 
+class MaintenanceAssistant_Node(Node):
+    def __init__(self, gc, service_data, prompt_dict, description="", key=""):
+        super().__init__(gc, description=description, key=key)
+        self._type = 'classifier'
+        self.ma = MaintenanceAssistant(prompt_dict=prompt_dict, 
+                                  model=gc, 
+                                  service_data=service_data)
+        self._type = 'generator'
+        
+    def run(self, data):
+        child_node = None
+        req_answer, gen_class = self.ma.respond(data[self.key])
+        req_answer = req_answer.replace('<list>', '')
+        child_node = self.childs.get(default_child_key, None)
+        return {"req_answer": req_answer, "ma_gen_class": gen_class, "child_node": child_node}
+
+    def add_child(self, child):
+        if len(self.childs)==0:
+            self._add_child(child, default_child_key)
+        else:
+            raise Exception("For generator node only 1 child allowed")
+
+            
 def get_dialog_tree(node_dict, gc):
     
     if node_dict['type']==LLM_Classifier:
@@ -252,6 +281,12 @@ def get_dialog_tree(node_dict, gc):
     elif node_dict['type']==Dim_Search_Land:
         node = Dim_Search_Land(dim=node_dict.get('dim'),
                              description=node_dict.get('description'))
+    elif node_dict['type']==MaintenanceAssistant_Node:
+        node = MaintenanceAssistant_Node(gc=gc,
+                                         service_data=node_dict.get('service_data'),
+                                         prompt_dict=node_dict.get('prompt_dict'),
+                                         description=node_dict.get('description'),
+                                         key=node_dict.get('key'))
         
     else:
         raise Exception(f"Unknown type of Node: {node_dict['type']}, {type(node_dict['type'])}")
