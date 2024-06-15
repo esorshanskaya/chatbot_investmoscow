@@ -17,8 +17,17 @@ def fn_wrap(msg, history):
 
 
 host = os.environ.get("HOST", "127.0.0.1")
-dict_auth = {True : (('admin','pass'), 'Выйти', f'http://{host}:8082/'),\
-             False : (None,'Авторизация', f'http://{host}:8081/')
+redirect_host = os.environ.get("LINK_HOST", "127.0.0.1")
+auth_port = 8082
+guest_port = 8083
+
+dict_auth = {True : {'creds': ('admin','pass'), 
+                     "button_name": 'Выйти', 
+                     "redirect_host": f"{redirect_host}:{auth_port}"},
+             
+             False : {'creds': (None, None), 
+                     "button_name": 'Авторизация', 
+                     "redirect_host": f"{redirect_host}:{guest_port}"},
     }
 
 def create_chatbot(auth = False):
@@ -41,9 +50,9 @@ def create_chatbot(auth = False):
                         )) as demo:
             image = gr.Image(value = 'logo.png', show_label=False, show_download_button = False)
             if auth:
-                    text = gr.Markdown(f'<div style="text-align: right;">  Вы авторизовались как <span style="color:#CE0A1E"> admin</span> <a href="{dict_auth[not auth][2]}"><img src="https://i.postimg.cc/8z68cTWJ/666d8f904b80f-1718456307-666d8f904b808.png" width="15" height="20" style="display:inline;"></a></div>')
+                    text = gr.Markdown(f'<div style="text-align: right;">  Вы авторизовались как <span style="color:#CE0A1E"> admin</span> <a href="{dict_auth[not auth]["redirect_host"]}"><img src="https://i.postimg.cc/8z68cTWJ/666d8f904b80f-1718456307-666d8f904b808.png" width="15" height="20" style="display:inline;"></a></div>')
             else:
-                button = gr.Button(value = dict_auth[not auth][1], link = dict_auth[not auth][2], \
+                button = gr.Button(value = dict_auth[auth]["button_name"], link = dict_auth[auth]['redirect_host'], \
                                elem_id="button1", elem_classes = 'button1')
                     
             
@@ -68,4 +77,4 @@ def create_chatbot(auth = False):
 if __name__ == '__main__':
         
         demo = create_chatbot(auth = True)
-        demo.launch(debug = True, server_name=host, server_port=8082)
+        demo.launch(debug = True, server_name=host, server_port=auth_port, auth = dict_auth[True]['creds'])

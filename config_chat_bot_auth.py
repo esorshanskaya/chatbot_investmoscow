@@ -24,7 +24,7 @@ def get_dialog_manager(user_info={}):
     
     gc = GigaChat(auth_token=auth_token)
     
-    chroma_client = chromadb.PersistentClient(path='rag_db/chroma/')
+    chroma_client = chromadb.PersistentClient(path='./chroma/')
     collection = chroma_client.get_or_create_collection(name="okved_collection")
     
     
