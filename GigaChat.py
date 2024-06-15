@@ -36,8 +36,9 @@ class GigaChat:
 
     def _check_iam_token(self):
         now = datetime.datetime.now()
-        if (now - self.iam_token_time)/pd.Timedelta(minutes=1)>20:
-            self._update_iam_token()
+        self._update_iam_token()
+        # if (now - self.iam_token_time)/pd.Timedelta(minutes=1)>20:
+        #     self._update_iam_token()
 
     def generate(self, system_prompt, user_prompt, gen_params = {}, model = "GigaChat-Pro"):
         self._check_iam_token()
@@ -58,10 +59,11 @@ class GigaChat:
               "content": user_prompt,
             },
           ],
+            "temperature": 0.1,
         })
-        for k,v in gen_params.items():
-            payload[k] = v
-
+        # for k,v in gen_params.items():
+        #     payload[k] = v
+        
         try:
             response = requests.request("POST", self.url_gen, headers=headers, data=payload, verify=False)
             msg = json.loads(response.text)['choices'][0]['message']['content']

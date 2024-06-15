@@ -15,12 +15,13 @@ import copy
 
 
 class DialogSession:
-    def __init__(self, dialog_tree, user_id):
+    def __init__(self, dialog_tree, user_id, user_info = {}):
         self.data = {}
         self.history = []
         self.dialog_tree = dialog_tree
         self.last_state = copy.copy(dialog_tree)
         self.user_id = user_id
+        self.user_info = user_info
                 
     def send_msg(self, user_msg):
         if self.last_state is None:
@@ -34,6 +35,7 @@ class DialogSession:
         while node is not None and req_answer=='':    
             node_type = type(node)
             node_data = node.run(self.data)
+            self.add_user_info()
             print(f"{node}: {node_data}")
 
             if node_type in [LLM_Generator, Dim_Search_Land, MaintenanceAssistant_Node]:
@@ -48,6 +50,9 @@ class DialogSession:
 
             node = node_data['child_node']
             self.last_state = node
+
+        if node is None:
+            self.history = []
         
         return req_answer
         
@@ -58,4 +63,10 @@ class DialogSession:
                 last_slice_msg += i['msg'] + '\n'
         
         self.data['last_msg'] = last_slice_msg
-        
+
+    def add_user_info(self):
+        # Update msg context
+        self.data['last_msg'] += "\nИнформация о пользователе:\n"
+        for k, v in self.user_info.items():
+            self.data['last_msg'] += f"{k}: {v}\n"
+            self.data[k] = v
