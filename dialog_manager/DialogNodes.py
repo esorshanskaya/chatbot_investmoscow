@@ -5,6 +5,7 @@ import GigaChat
 import traceback
 import json
 import pandas as pd
+import regex as re
 from MaintenanceAssistant import MaintenanceAssistant
 
 class Node():
@@ -98,6 +99,36 @@ class LLM_Generator(Node):
             raise Exception("For generator node only 1 child allowed")
 
 
+# LLM service 
+class LLM_Generator(Node):
+    
+    def __init__(self, gc=None, system_prompt=None, dummy_answer=None, description="", key="", required_answer=False):
+        super().__init__(gc, description=description, key=key, required_answer=required_answer)
+        self.system_prompt = system_prompt
+        self._type = 'generator'
+        self.dummy_answer=dummy_answer
+
+    def run(self, data):
+        child_node = None
+        req_answer = self._generate_answer(data[self.key])
+        child_node = self.childs.get(default_child_key, None)
+        return {"req_answer": req_answer, "child_node": child_node}
+
+    def _generate_answer(self, req):
+        if not self.dummy_answer:
+            ans = self.gc.generate(system_prompt=self.system_prompt, 
+                                                    user_prompt=req)
+        else:
+            ans = self.dummy_answer
+        return ans
+    
+    def add_child(self, child):
+        if len(self.childs)==0:
+            self._add_child(child, default_child_key)
+        else:
+            raise Exception("For generator node only 1 child allowed")
+
+
 # Нода для вычления сущностей: 
 class LLM_Extractor(Node):
     def __init__(self, gc, system_prompt=None, entity_list=[], description="", key="", required_answer=False):
@@ -116,11 +147,20 @@ class LLM_Extractor(Node):
         unparsed_enities = []
         
         try:
+            
             ans = json.loads(ans.replace("'", '"'))
             # Work around for rent
-            if 'Тип деятельности бизнеса' in ans and 'аренда' in ans['Тип деятельности бизнеса'].lower():
-                del ans['Тип деятельности бизнеса']
-                
+            if 'Тип деятельности бизнеса' in ans:
+                if 'аренда' in ans['Тип деятельности бизнеса'].lower() \
+                or 'стартап' in ans['Тип деятельности бизнеса'].lower() \
+                or 'бизнес' in ans['Тип деятельности бизнеса'].lower() :
+                    del ans['Тип деятельности бизнеса']
+            if 'Минимальная площадь в м2' in ans:
+                min_sq = ans['Минимальная площадь в м2']
+                if type(min_sq)==str:
+                    min_sq = re.search('\d+', min_sq)
+                    ans['Минимальная площадь в м2'] = int(min_sq.group())
+                    
         except Exception as e:
             print(f"Error on parsing: {ans}")
             print(traceback.format_exc())
@@ -198,6 +238,11 @@ class Dim_Search_Land(Node):
         for i in codes:
             boolean_flag = boolean_flag | df['Перечень видов экономической деятельности, возможных к реализации на площадке'].str.contains(str(i))
         df = df.loc[boolean_flag]
+        # Search by min sq
+        mean_sq = data['Минимальная площадь в м2']
+        df['diff_sq'] = df['Свободная площадь здания, сооружения, помещения, кв. м'] - mean_sq
+        df = df[df['diff_sq']>-3]
+        df = df.sort_values('diff_sq', ascending=True, ignore_index=True).head(6)
         return df
 
     def _generate_answer(self, dim_filtered):
@@ -221,6 +266,20 @@ class Dim_Search_Land(Node):
             self._add_child(child, default_child_key)
         else:
             raise Exception("For generator node only 1 child allowed")
+
+
+class ServiceClassification(LLM_Generator):    
+    def __init__(self, gc, dummy_link, system_prompt=None, description="", key=""):
+        super().__init__(gc, system_prompt=system_prompt,
+                         description=description, key=key)
+        self._type = 'service_classification'
+        self.dummy_link=dummy_link
+
+    def run(self, data):
+        ans = super().run(data)
+        ans["req_answer"] += '\n'
+        ans["req_answer"] += self.dummy_link
+        return ans
 
 
 class MaintenanceAssistant_Node(Node):
