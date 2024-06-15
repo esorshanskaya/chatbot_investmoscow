@@ -12,6 +12,8 @@ import chromadb
 import os
 import dotenv
 import copy
+import datetime
+
 
 
 class DialogSession:
@@ -24,6 +26,7 @@ class DialogSession:
         self.user_info = user_info
                 
     def send_msg(self, user_msg):
+        log_msg(user_msg)
         if self.last_state is None:
             self.last_state = copy.copy(self.dialog_tree)
         node = self.last_state
@@ -70,3 +73,11 @@ class DialogSession:
         for k, v in self.user_info.items():
             self.data['last_msg'] += f"{k}: {v}\n"
             self.data[k] = v
+
+
+def log_msg(msg):
+    time = datetime.datetime.now()
+    with open("logs.txt", mode='a') as f:
+        log_str = f"{time}, {msg}"
+        f.write(log_str)
+    
