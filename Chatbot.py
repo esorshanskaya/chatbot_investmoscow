@@ -1,11 +1,22 @@
 import gradio as gr
-from config import init
+import os
+import dotenv
 
+dotenv.load_dotenv()
 
+host = os.environ.get("HOST", "127.0.0.1")
+redirect_host = os.environ.get("LINK_HOST", "127.0.0.1")
+auth_port = 8082
+guest_port = 8083
 
-
-
-logo, model, system_prompt = init()  
+dict_auth = {True : {'creds': ('admin','pass'), 
+                     "button_name": 'Выйти', 
+                     "redirect_host": f"{redirect_host}:{auth_port}"},
+             
+             False : {'creds': (None, None), 
+                     "button_name": 'Авторизация', 
+                     "redirect_host": f"{redirect_host}:{guest_port}"},
+    }
 
 
 def convert_to_text(arr):
@@ -16,20 +27,7 @@ def convert_to_text(arr):
 
 
 
-def LLM_respond(message, history, model = model, system_prompt = 'Отвечай как будто ты консультант из Маккинзи'):
-    input = convert_to_text(history) + message 
-    ans = model.generate(system_prompt=system_prompt, 
-            user_prompt=input)
-    return ans
 
-
-dict_auth = {True : (('admin','pass'),'Выйти','http://51.250.17.38:8082/'),\
-             False : (None,'Авторизация','http://51.250.17.38:8083/')
-    }
-
-dict_auth = {True : (('admin','pass'),'Выйти','http://51.250.17.38:8082/'),\
-             False : (None,'Авторизация','http://51.250.17.38:8083/')
-    }
 
 def create_chatbot(fn_wrap,auth = False):
         css = """
@@ -51,10 +49,11 @@ def create_chatbot(fn_wrap,auth = False):
                         )) as demo:
             image = gr.Image(value = 'logo.png', show_label=False, show_download_button = False)
             if auth:
-                    text = gr.Markdown(f'<div style="text-align: right;">  Вы авторизовались как <span style="color:#CE0A1E"> admin</span> <a href="{dict_auth[auth][2]}"><img src="https://i.postimg.cc/8z68cTWJ/666d8f904b80f-1718456307-666d8f904b808.png" width="15" height="20" style="display:inline;"></a></div>')
+                text = gr.Markdown(\
+                         f'<div style="text-align: right;">  Вы авторизовались как <span style="color:#CE0A1E"> admin</span> <a href="{dict_auth[not auth]["redirect_host"]}"><img src="https://i.postimg.cc/8z68cTWJ/666d8f904b80f-1718456307-666d8f904b808.png" width="15" height="20" style="display:inline;"></a></div>')
 
             else:
-                button = gr.Button(value = dict_auth[auth][1], link = dict_auth[auth][2], \
+                button = gr.Button(value = dict_auth[auth]["button_name"], link = dict_auth[auth]['redirect_host'], \
                                elem_id="button1", elem_classes = 'button1')
                     
             
@@ -74,9 +73,3 @@ def create_chatbot(fn_wrap,auth = False):
 
         return demo
 
-if __name__ == '__main__':
-        
-        demo_1 = create_chatbot(fn_wrap = LLM_respond,auth = False)
-        demo_1.launch(debug = True, server_name="0.0.0.0", server_port=8082)
-        demo_2 = create_chatbot(fn_wrap = LLM_respond,auth = True)
-        demo_2.launch(debug = True, server_name="0.0.0.0", server_port=8083,auth = dict_auth[True][0])

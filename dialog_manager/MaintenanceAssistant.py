@@ -9,12 +9,15 @@ class MaintenanceAssistant():
         # данные
         self.service_data = service_data
         self.types = [f'{i+1}){type}' for i,type in enumerate(self.service_data['Вид поддержки'].unique())] + ['1000) Другое или невозможно определить']
-        self.names = names = [f'{i+1}){name}' for i,name in enumerate(self.service_data['Наименование меры поддержки'].unique())] + ['1000) Другое или невозможно определить']
-        self.okved_dict = self.__okved_dict()
+        self.names =  [f'{i+1}){name}' for i,name in enumerate(self.service_data['Наименование меры поддержки'].unique())] + ['1000) Другое или невозможно определить']
+        self.okved_dict = self._okved_dict()
+        if 'ОКВЭД' in self.service_data.columns:
+            self.service_data = self.service_data.drop(columns = ['ОКВЭД'])
         # общий классификатор по разделам
         self.system_prompt_classification = prompt_dict['general_classification']
         # ОКВЭД/виды бизнеса
         self.system_prompt_business_classification = prompt_dict['business_classification'].format(okved = list(self.okved_dict.keys()))
+        self.system_prompt_business_maintenance =  prompt_dict['business_maintenance']
         #Конкретная мера поддержки
         self.system_prompt_service_classification = prompt_dict['service_classification'].format(names = self.names)
         self.system_prompt_service_information = prompt_dict['service_information']
@@ -26,35 +29,37 @@ class MaintenanceAssistant():
         self.log = {}
         ans = self.model.generate(system_prompt=self.system_prompt_classification, 
         user_prompt=req)
-        q_class = self.__convert_class(ans, negative_class = 4)
+        q_class = self._convert_class(ans, negative_class = 4)
         self.log['gen_class'] = q_class
         match q_class:
             case 1:
-                ans = self.__business_request(req)
+                ans = self._business_request(req)
             case 2:
-                ans = self.__service_request(req)
+                ans = self._service_request(req)
             case 3:
-                ans = self.__type_request(req)
+                ans = self._type_request(req)
             case -1:
-                ans = self.__other_request(req)
+                ans = self._other_request(req)
         return ans, self.log
                 
-    def __business_request(self,req):
+    def _business_request(self,req):
         ans = self.model.generate(system_prompt=self.system_prompt_business_classification, 
         user_prompt=req)
-        print('ans okved', ans)
         service_list = self.okved_dict.get(ans,None)
         if service_list:
-            service_list = self.service_data.iloc[service_list]['Наименование меры поддержки'].values[:3]
-            service_list_msg = ",\n".join(service_list)
-            return f'По вашей экономической деятельности найден следующий список мер поддержки и услуг:\n {service_list_msg}'
+            service_list = self.service_data.iloc[service_list]['Наименование меры поддержки'].values
+            ans = self.model.generate(system_prompt=self.system_prompt_business_maintenance.format(service_list=service_list), 
+        user_prompt=req)
+            
+            return ans
+     
         else:
             return 'Вид экономической деятельности не определен. Попробуйте переформулировать запрос'
     
-    def __service_request(self,req):
+    def _service_request(self,req):
         ans = self.model.generate(system_prompt=self.system_prompt_service_classification, 
         user_prompt=req)
-        service_num = self.__convert_class(ans,negative_class = 1000)
+        service_num = self._convert_class(ans,negative_class = 1000)
         self.log['service_num'] = service_num
         if service_num != -1:
             info = dict(self.service_data.iloc[service_num - 1])
@@ -65,10 +70,10 @@ class MaintenanceAssistant():
         else:
             return 'Запрашиваемая информация не найдена. Попробуйте переформулировать запрос'
     
-    def __type_request(self,req):
+    def _type_request(self,req):
         ans = self.model.generate(system_prompt=self.system_prompt_type_classification, 
                 user_prompt=req)
-        type_num = self.__convert_class(ans,negative_class = 1000)
+        type_num = self._convert_class(ans,negative_class = 1000)
         self.log['type_num'] = type_num
         if type_num != -1:
             service_list = self.service_data[self.service_data['Вид поддержки']== self.service_data['Вид поддержки'].unique()[type_num-1]]['Наименование меры поддержки']
@@ -76,19 +81,19 @@ class MaintenanceAssistant():
         else:
             return f'Запрашиваемый вид мер поддержки не найден. Доступные меры: {",/n".join(self.types)}'
     
-    def __other_request(self,req):
-        return 'Мне не удалось найти необходимую Вам информацию. Пожалуйста, воспользуйтесь официальным сайтом: https://investmoscow.ru/'
+    def _other_request(self,req):
+        return 'Мне не удалось найти необходимую Вам информацию. Пожалуйста, воспользуйтесь сайтом: https://investmoscow.ru/'
 
     
     
-    def __convert_class(self,ans, negative_class):
+    def _convert_class(self,ans, negative_class):
         try:
             cls =  int(re.match(r'^\d+', ans).group())
             return cls if cls != negative_class else -1
         except Exception:
             return -1
     
-    def __okved_dict(self):
+    def _okved_dict(self):
         def get_service_dict(okved):
             target_list = []
             for idx, row in self.service_data.iterrows():
@@ -129,10 +134,6 @@ prompt_dict = {
 Дай краткое описание услуги и ответь на интересующий вопрос пользователя при помощи данной информации.
 Не указывай ссылки в ответе! Не упоминай, что ты используешь словарь""",
     
-    
+        'business_maintenance' : """Выбери и выдай в качестве ответа не более 5 интересных и релевантных мер поддержки из списка: {service_list}.
+    Ответ выдай в формате: 'Вот список наиболее популярных мер поддержки для вашего бизнеса (назвать бизнес) <list>'"""
 }    
-    
-# Пример использования:
-# df_service = pd.read_excel('Региональные меры поддержки Москва.xlsx')
-# assistant = MaintenanceAssistant(prompt_dict = prompt_dict, model = gc, service_data = df_service)
-# assistan.respond('Интересует возможность вступления в реестр альтернативных поставщиков?')
