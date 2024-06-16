@@ -29,7 +29,7 @@ def convert_to_text(arr):
 
 
 
-def create_chatbot(fn_wrap,dict_auth,auth = False):
+def create_chatbot(fn_wrap,auth = False):
         css = """
         #chatbot {background-color: #F8F8F8}
         #button2 {background-color: transparent; border: none; flex-wrap: nowrap;}

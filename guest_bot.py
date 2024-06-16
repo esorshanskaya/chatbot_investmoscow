@@ -17,5 +17,5 @@ def fn_wrap(msg, history):
 
 if __name__ == '__main__':
         
-        demo = create_chatbot(fn_wrap=fn_wrap,auth=False, dict_auth = dict_auth)
+        demo = create_chatbot(fn_wrap=fn_wrap,auth=False)
         demo.launch(debug = True, server_name=host, server_port=guest_port)
