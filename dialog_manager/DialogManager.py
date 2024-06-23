@@ -65,7 +65,7 @@ class DialogSession:
         
     def get_last_n_message(self, n_last=2):
         last_slice_msg = ''
-        for i in self.history[-4*n_last:]:
+        for i in self.history[-2*n_last:]:
             if i['user_type'] == 'user':
                 last_slice_msg += i['msg'] + '\n'
         self.data['last_msg'] = last_slice_msg
