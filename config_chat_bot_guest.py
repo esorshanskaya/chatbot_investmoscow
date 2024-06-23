@@ -233,7 +233,7 @@ def get_dialog_manager(user_info={}):
                        "key": "last_msg",
                        "system_prompt": ner_land_params['system_prompt'],
                        "entity_list": ner_land_params['entity_list'],
-                       "description": ner_land_params['description'],
+                       "description": "2 NER для подбора земли",
                        "childs": {}}
     land_request_classification['childs'][1] = ner_land_params
     
@@ -269,16 +269,7 @@ def get_dialog_manager(user_info={}):
     dummy_get_more_info_land['childs'][default_child_key] = ner_land_params_2_iter
     ner_land_params_2_iter['childs'][status_extractor_not_found] = rag_okved_not_found
     ner_land_params_2_iter['childs'][status_extractor_ok] = rag_okved_ok
-    
-    rag_okved_not_found = {"id": "rag_okved_not_found",
-                           "type": RAG_Classifier,
-                           "collection": collection,
-                           "target_field": 'code',
-                           "top_n": 3,
-                           "description": 'RAG классификатор ОКВЭД',
-                           "key": "last_msg",
-                           "childs": {}}
-    
+        
     dim_search_land = {"id": "dim_search_land",
                        "type": Dim_Search_Land,
                        "dim": df_land.copy(),

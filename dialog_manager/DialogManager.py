@@ -30,15 +30,16 @@ class DialogSession:
         if self.last_state is None:
             self.last_state = copy.copy(self.dialog_tree)
         node = self.last_state
-            
         self.history.append({"user_type": "user", "msg": user_msg})
         self.get_last_n_message()
         req_answer = ''
-        
-        while node is not None and req_answer=='':    
+        print('msg:', user_msg.strip('\n'))
+        while node is not None and req_answer=='':  
+            self.get_last_n_message()
             node_type = type(node)
             node_data = node.run(self.data)
             print(f"{node}: {node_data}")
+            print('last_msg:', self.data['last_msg'])
             self.add_user_info()
 
             if node_type in [LLM_Generator, Dim_Search_Land, MaintenanceAssistant_Node, DummyListFormatter]:
@@ -55,25 +56,27 @@ class DialogSession:
             node = node_data['child_node']
             if node is None:
                 node = copy.copy(self.dialog_tree)
+                print("============================ END OF BRANCH ====================================")
+                
             self.last_state = node
             
-        
+            
         return req_answer
         
     def get_last_n_message(self, n_last=2):
         last_slice_msg = ''
-        for i in self.history[-2*n_last:]:
+        for i in self.history[-4*n_last:]:
             if i['user_type'] == 'user':
                 last_slice_msg += i['msg'] + '\n'
-        
         self.data['last_msg'] = last_slice_msg
 
     def add_user_info(self):
         # Update msg context
-        self.data['last_msg'] += "\nИнформация о пользователе:\n"
-        for k, v in self.user_info.items():
-            self.data['last_msg'] += f"{k}: {v}\n"
-            self.data[k] = v
+        if self.user_info:
+            self.data['last_msg'] += "\nИнформация о пользователе:\n"
+            for k, v in self.user_info.items():
+                self.data['last_msg'] += f"{k}: {v}\n"
+                self.data[k] = v
             
     def reset_dialog(self):
         self.data = {"last_msg": ""}

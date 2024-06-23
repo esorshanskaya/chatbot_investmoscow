@@ -236,7 +236,9 @@ class Dim_Search_Land(Node):
             boolean_flag = boolean_flag | df['Перечень видов экономической деятельности, возможных к реализации на площадке'].str.contains(str(i))
         df = df.loc[boolean_flag]
         # Search by min sq
-        mean_sq = data['Минимальная площадь в м2']
+        if 'Минимальная площадь в м2' in data:
+            mean_sq = data['Минимальная площадь в м2']
+        else: return pd.DataFrame()
         df['diff_sq'] = df['Свободная площадь здания, сооружения, помещения, кв. м'] - mean_sq
         df = df[df['diff_sq']>-3]
         df = df.sort_values('diff_sq', ascending=True, ignore_index=True).head(6)
@@ -250,9 +252,9 @@ class Dim_Search_Land(Node):
                  'Ссылка на форму подачи заявки', 
                  'Свободная площадь здания, сооружения, помещения, кв. м']]\
                         .drop_duplicates().sample(min(3, len(dim_filtered)))
-            msg = 'Возможно вас заинтересуют следующие варианты: "\n'
+            msg = 'Возможно вас заинтересуют следующие варианты: \n'
             for n, i in df_tmp.reset_index(drop=True).iterrows():
-                msg += f"{n+1}): {i['Название площадки']}; "
+                msg += f"{n+1}) {i['Название площадки']}; "
                 msg += f"Ссылка на форму подачи заявки: {i['Ссылка на форму подачи заявки']}\n"
             msg += '\nСрок рассмотрения заявки физических лиц не превышает 14 календарных дней.\n'
             msg += 'Срок рассмотрения заявки юридических лиц и индивидуальных предпринимателей не превышает 30 календарных дней.\n'
