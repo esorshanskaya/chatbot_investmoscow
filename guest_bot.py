@@ -13,9 +13,11 @@ def fn_wrap(msg, history):
     answer = ds.send_msg(msg)
     return answer
 
+def fn_wrap_reset(*args, **kwargs):
+    ds.reset_dialog()
 
 
 if __name__ == '__main__':
         
-        demo = create_chatbot(fn_wrap=fn_wrap,auth=False)
+        demo = create_chatbot(fn_wrap=fn_wrap, fn_wrap_reset=fn_wrap_reset, auth=False)
         demo.launch(debug = True, server_name=host, server_port=guest_port)

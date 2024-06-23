@@ -97,29 +97,25 @@ class LLM_Generator(Node):
             self._add_child(child, default_child_key)
         else:
             raise Exception("For generator node only 1 child allowed")
-
-
-# LLM service 
-class LLM_Generator(Node):
-    
-    def __init__(self, gc=None, system_prompt=None, dummy_answer=None, description="", key="", required_answer=False):
-        super().__init__(gc, description=description, key=key, required_answer=required_answer)
-        self.system_prompt = system_prompt
+            
+            
+class DummyListFormatter(Node):
+    def __init__(self, gc=None, system_prompt=None, dummy_answer=None, description="", key="", format_ans=""):
+        super().__init__(gc, description=description, key=key)
         self._type = 'generator'
-        self.dummy_answer=dummy_answer
+        self.format_ans = format_ans
 
     def run(self, data):
         child_node = None
-        req_answer = self._generate_answer(data[self.key])
+        info_list = data[self.key]
+        req_answer = self._generate_answer(info_list)
         child_node = self.childs.get(default_child_key, None)
+        print('req_answer', req_answer)
         return {"req_answer": req_answer, "child_node": child_node}
 
-    def _generate_answer(self, req):
-        if not self.dummy_answer:
-            ans = self.gc.generate(system_prompt=self.system_prompt, 
-                                                    user_prompt=req)
-        else:
-            ans = self.dummy_answer
+    def _generate_answer(self, info_list):
+        info_list = '\n'.join([f"{n+1}) {i}" for n, i in enumerate(info_list)])
+        ans = self.format_ans.format(info_list=info_list)
         return ans
     
     def add_child(self, child):
@@ -127,6 +123,7 @@ class LLM_Generator(Node):
             self._add_child(child, default_child_key)
         else:
             raise Exception("For generator node only 1 child allowed")
+            
 
 
 # Нода для вычления сущностей: 
@@ -286,14 +283,15 @@ class MaintenanceAssistant_Node(Node):
     def __init__(self, gc, service_data, prompt_dict, description="", key=""):
         super().__init__(gc, description=description, key=key)
         self._type = 'classifier'
+        # define okved: 
         self.ma = MaintenanceAssistant(prompt_dict=prompt_dict, 
-                                  model=gc, 
-                                  service_data=service_data)
+                                       model=gc, 
+                                       service_data=service_data)
         self._type = 'generator'
         
     def run(self, data):
         child_node = None
-        req_answer, gen_class = self.ma.respond(data[self.key])
+        req_answer, gen_class = self.ma.respond(data[self.key], data)
         req_answer = req_answer.replace('<list>', '')
         child_node = self.childs.get(default_child_key, None)
         return {"req_answer": req_answer, "ma_gen_class": gen_class, "child_node": child_node}
@@ -344,6 +342,11 @@ def get_dialog_tree(node_dict, gc):
         node = MaintenanceAssistant_Node(gc=gc,
                                          service_data=node_dict.get('service_data'),
                                          prompt_dict=node_dict.get('prompt_dict'),
+                                         description=node_dict.get('description'),
+                                         key=node_dict.get('key'))
+    elif node_dict['type']==DummyListFormatter:
+        node = DummyListFormatter(gc=gc,
+                                         format_ans=node_dict.get('format_ans'),
                                          description=node_dict.get('description'),
                                          key=node_dict.get('key'))
         

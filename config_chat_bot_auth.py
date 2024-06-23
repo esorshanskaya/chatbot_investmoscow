@@ -40,7 +40,7 @@ def get_dialog_manager(user_info={}):
     park_list = ['Название технопарка', 'Налог на прибыль', 'Как стать резидентом', ]
     df_park = df_park[df_park['Название технопарка'].isin(df_land['Название технопарка'])]
     
-    df_land = df_land.merge(df_park, on = ['Название технопарка'])
+    df_land = df_land.merge(df_park, on = ['Название технопарка'], how='left')
     df_land['Ссылка на форму подачи заявки'] = df_land['Ссылка на форму подачи заявки'].str.strip('\n').str.strip()
     mandatory_land_list = [
                 'Перечень видов экономической деятельности, возможных к реализации на площадке',
@@ -138,7 +138,8 @@ def get_dialog_manager(user_info={}):
         В Минимальная площади укавай только число"""
     
     
-    df_land_instruct_context = str(df_land[['Название площадки', 'Название технопарка', 'Ссылка на форму подачи заявки', 
+    df_land_instruct_context = str(df_land.loc[df_land['Название технопарка'].notna(), 
+                                               ['Название площадки', 'Название технопарка', 'Ссылка на форму подачи заявки', 
              'Свободная площадь здания, сооружения, помещения, кв. м']].to_dict(orient='records'))
     
     system_prompt_land_instruct = f"""

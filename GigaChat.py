@@ -66,11 +66,18 @@ class GigaChat:
         
         try:
             response = requests.request("POST", self.url_gen, headers=headers, data=payload, verify=False)
-            msg = json.loads(response.text)['choices'][0]['message']['content']
-            return msg
+            msg = json.loads(response.text)
+            if 'choices' in msg:
+                msg = msg['choices'][0]['message']['content']
+                return msg
+            else:
+                print('msg', msg)
+                raise
         except:
             print(response)
             print(response.text)
+            print('system_prompt', system_prompt)
+            print('user_prompt', user_prompt)
             raise
             
 

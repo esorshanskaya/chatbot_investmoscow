@@ -25,7 +25,7 @@ class MaintenanceAssistant():
         self.system_prompt_type_classification = prompt_dict['type_classification'].format(types = self.types)
         
         
-    def respond(self,req):
+    def respond(self,req, data):
         self.log = {}
         ans = self.model.generate(system_prompt=self.system_prompt_classification, 
         user_prompt=req)
@@ -33,7 +33,7 @@ class MaintenanceAssistant():
         self.log['gen_class'] = q_class
         match q_class:
             case 1:
-                ans = self._business_request(req)
+                ans = self._business_request(req, data)
             case 2:
                 ans = self._service_request(req)
             case 3:
@@ -42,9 +42,12 @@ class MaintenanceAssistant():
                 ans = self._other_request(req)
         return ans, self.log
                 
-    def _business_request(self,req):
-        ans = self.model.generate(system_prompt=self.system_prompt_business_classification, 
-        user_prompt=req)
+    def _business_request(self, req, data):
+        if 'Тип деятельности бизнеса' in data:
+            ans = data['Тип деятельности бизнеса'][0]
+        else:
+            ans = self.model.generate(system_prompt=self.system_prompt_business_classification, 
+            user_prompt=req)
         service_list = self.okved_dict.get(ans,None)
         if service_list:
             service_list = self.service_data.iloc[service_list]['Наименование меры поддержки'].values

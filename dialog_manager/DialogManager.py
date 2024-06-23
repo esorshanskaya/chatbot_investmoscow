@@ -38,24 +38,25 @@ class DialogSession:
         while node is not None and req_answer=='':    
             node_type = type(node)
             node_data = node.run(self.data)
-            self.add_user_info()
             print(f"{node}: {node_data}")
+            self.add_user_info()
 
-            if node_type in [LLM_Generator, Dim_Search_Land, MaintenanceAssistant_Node]:
+            if node_type in [LLM_Generator, Dim_Search_Land, MaintenanceAssistant_Node, DummyListFormatter]:
                 req_answer = node_data['req_answer']
                 self.history.append({"user_type": "ai", "msg": req_answer})
             if node_type == LLM_Extractor:
                 for k, v in node_data['json_entites'].items():
                     self.data[k] = v
+                self.data['unparsed_enities'] = node_data['unparsed_enities']
             if node_type == RAG_Classifier:
                 for k, v in node_data['json_entites'].items():
                     self.data[k] = v
 
             node = node_data['child_node']
+            if node is None:
+                node = copy.copy(self.dialog_tree)
             self.last_state = node
-
-        if node is None:
-            self.history = []
+            
         
         return req_answer
         
@@ -73,11 +74,16 @@ class DialogSession:
         for k, v in self.user_info.items():
             self.data['last_msg'] += f"{k}: {v}\n"
             self.data[k] = v
-
+            
+    def reset_dialog(self):
+        self.data = {"last_msg": ""}
+        self.history = []
+        self.last_state = copy.copy(self.dialog_tree)
+        
 
 def log_msg(msg):
     time = datetime.datetime.now()
     with open("logs.txt", mode='a') as f:
-        log_str = f"{time}, {msg}"
+        log_str = f"{time}, {msg}\n"
         f.write(log_str)
     
