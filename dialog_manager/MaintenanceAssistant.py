@@ -30,45 +30,47 @@ class MaintenanceAssistant():
         self.log = {}
         ans = self.model.generate(system_prompt=self.system_prompt_classification, 
         user_prompt=req)
-        print(ans)
         q_class = self._convert_class(ans, negative_class = 4)
         self.log['gen_class'] = q_class
+        print(f'Первичная классификация: {q_class}, ответ {ans}')
         match q_class:
             case 1:
-                print(1)
                 ans = self._business_request(req, data)
             case 2:
-                print(2)
                 ans = self._service_request(req)
             case 3:
-                print(3)
                 ans = self._type_request(req)
             case -1:
-                print(-1)
                 ans = self._other_request(req)
         return ans, self.log
                 
     def _business_request(self, req, data):
+        print('Блок подбор мер поддержки')
         ans = self.model.generate(system_prompt=self.system_prompt_business_classification, 
             user_prompt=req)
+
         class_ = self._convert_class(ans,1000)
         if class_ == 0 and 'Тип деятельности бизнеса' in data and data['Тип деятельности бизнеса'][0] is not None:
             class_ = data['Тип деятельности бизнеса'][0] 
+        print(f'Определенный ОКВЭД: {class_}')
         service_list = self.okved_service_dict.get(class_,None)
-        if service_list:
+        if service_list and class_!= 0:
             service_list = self.service_data.iloc[service_list]['Наименование меры поддержки'].values
-            ans = self.model.generate(system_prompt=self.system_prompt_business_maintenance.format(service_list=service_list), 
+            ans = self.model.generate(system_prompt=self.system_prompt_business_maintenance.format(service_list=service_list,\
+                                                                                                  business = self.okved_dict[class_]), 
         user_prompt=req)
-            
+            add = f"Вот список мер поддержки для { self.okved_dict[class_]}\n" 
             return ans
      
         else:
             return 'Вид экономической деятельности не определен. Попробуйте переформулировать запрос'
     
     def _service_request(self,req):
+        print('Блок конкретных мер поддержки')
         ans = self.model.generate(system_prompt=self.system_prompt_service_classification, 
         user_prompt=req)
         service_num = self._convert_class(ans,negative_class = 1000)
+        print('Определенная мера поддержки: {service_num}, {ans}')
         self.log['service_num'] = service_num
         if service_num != -1:
             info = dict(self.service_data.iloc[service_num - 1])
@@ -80,9 +82,11 @@ class MaintenanceAssistant():
             return 'Запрашиваемая информация не найдена. Попробуйте переформулировать запрос'
     
     def _type_request(self,req):
+        print('Блок вида мер поддержки')
         ans = self.model.generate(system_prompt=self.system_prompt_type_classification, 
                 user_prompt=req)
         type_num = self._convert_class(ans,negative_class = 1000)
+        print('Определенный вид мер поддержки: {type_num}, {ans}')
         self.log['type_num'] = type_num
         if type_num != -1:
             service_list = self.service_data[self.service_data['Вид поддержки']== self.service_data['Вид поддержки'].unique()[type_num-1]]['Наименование меры поддержки']
@@ -147,6 +151,6 @@ prompt_dict = {
 Дай краткое описание услуги и ответь на интересующий вопрос пользователя при помощи данной информации.
 Не указывай ссылки в ответе! Не упоминай, что ты используешь словарь""",
     
-        'business_maintenance' : """Выбери и выдай в качестве ответа не более 5 интересных и релевантных мер поддержки из списка: {service_list}.
-    Список гарантировано подходит под тип бизнеса. Ответ выдай в формате: 'Вот список наиболее популярных мер поддержки для вашего бизнеса (назвать бизнес) <list>'"""
+        'business_maintenance' : """Выбери и выдай в качестве ответа не более 5 интересных и релевантных мер поддержки  для {business} из списка: {service_list}.
+    Список гарантировано подходит под тип бизнеса, обязательно выдай ответ на основе списка, не более 5 вариантов(!!!). '"""
 }    
