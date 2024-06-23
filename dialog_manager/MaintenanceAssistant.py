@@ -10,13 +10,14 @@ class MaintenanceAssistant():
         self.service_data = service_data
         self.types = [f'{i+1}){type}' for i,type in enumerate(self.service_data['Вид поддержки'].unique())] + ['1000) Другое или невозможно определить']
         self.names =  [f'{i+1}){name}' for i,name in enumerate(self.service_data['Наименование меры поддержки'].unique())] + ['1000) Другое или невозможно определить']
-        self.okved_dict = self._okved_dict()
+        self.okved_dict, self.okved_service_dict = self._okved_dict()
         if 'ОКВЭД' in self.service_data.columns:
             self.service_data = self.service_data.drop(columns = ['ОКВЭД'])
         # общий классификатор по разделам
         self.system_prompt_classification = prompt_dict['general_classification']
         # ОКВЭД/виды бизнеса
-        self.system_prompt_business_classification = prompt_dict['business_classification'].format(okved = list(self.okved_dict.keys()))
+        self.system_prompt_business_classification = prompt_dict['business_classification'].format(\
+                                                                         okved = [f'{idx}) {val}' for idx,val in self.okved_dict.items()])
         self.system_prompt_business_maintenance =  prompt_dict['business_maintenance']
         #Конкретная мера поддержки
         self.system_prompt_service_classification = prompt_dict['service_classification'].format(names = self.names)
@@ -29,26 +30,31 @@ class MaintenanceAssistant():
         self.log = {}
         ans = self.model.generate(system_prompt=self.system_prompt_classification, 
         user_prompt=req)
+        print(ans)
         q_class = self._convert_class(ans, negative_class = 4)
         self.log['gen_class'] = q_class
         match q_class:
             case 1:
+                print(1)
                 ans = self._business_request(req, data)
             case 2:
+                print(2)
                 ans = self._service_request(req)
             case 3:
+                print(3)
                 ans = self._type_request(req)
             case -1:
+                print(-1)
                 ans = self._other_request(req)
         return ans, self.log
                 
     def _business_request(self, req, data):
-        if 'Тип деятельности бизнеса' in data:
-            ans = data['Тип деятельности бизнеса'][0]
-        else:
-            ans = self.model.generate(system_prompt=self.system_prompt_business_classification, 
+        ans = self.model.generate(system_prompt=self.system_prompt_business_classification, 
             user_prompt=req)
-        service_list = self.okved_dict.get(ans,None)
+        class_ = self._convert_class(ans,1000)
+        if class_ == 0 and 'Тип деятельности бизнеса' in data and data['Тип деятельности бизнеса'][0] is not None:
+            class_ = data['Тип деятельности бизнеса'][0] 
+        service_list = self.okved_service_dict.get(class_,None)
         if service_list:
             service_list = self.service_data.iloc[service_list]['Наименование меры поддержки'].values
             ans = self.model.generate(system_prompt=self.system_prompt_business_maintenance.format(service_list=service_list), 
@@ -100,17 +106,21 @@ class MaintenanceAssistant():
         def get_service_dict(okved):
             target_list = []
             for idx, row in self.service_data.iterrows():
-                if okved in row['ОКВЭД']:
+                if okved in row['ОКВЭД'] or 'нет ограничений' in row['ОКВЭД'].lower():
                     target_list.append(idx)
             return target_list
-        okved_list = np.unique([okved_ for x in self.service_data['ОКВЭД'].apply(lambda x: x.split(';')).values for okved_ in x])
         
         self.service_data['ОКВЭД'] = self.service_data['ОКВЭД'].str.replace('\xa0',' ').str.replace('газом и паром;','газом и паром,')\
             .str.replace('офисов;','офисов,').str.replace('Сбор, обработка и утилизация отходов;','Сбор, обработка и утилизация отходов,')\
             .str.replace('проектирования; технических','проектирования, технических').str.replace('Нет ограничений','00 - Нет ограничений')\
             .str.replace('11-','11 -')
-        okved_dict = {x.split(' ')[0] : get_service_dict(x.split(' ')[0]) for x in okved_list}
-        return okved_dict
+        
+        okved_list = np.unique([okved_ for x in self.service_data['ОКВЭД'].apply(lambda x: x.split(';')).values for okved_ in x])
+        
+        
+        okved_dict = {int(x.split(' ')[0]) :  ' '.join(x.split('-')[1:]).strip() for x in okved_list}
+        okved_service_dict = {int(x.split(' ')[0]) : get_service_dict(x.split(' ')[0]) for x in okved_list}
+        return okved_dict,okved_service_dict
     
     
 prompt_dict = {
@@ -138,5 +148,5 @@ prompt_dict = {
 Не указывай ссылки в ответе! Не упоминай, что ты используешь словарь""",
     
         'business_maintenance' : """Выбери и выдай в качестве ответа не более 5 интересных и релевантных мер поддержки из списка: {service_list}.
-    Ответ выдай в формате: 'Вот список наиболее популярных мер поддержки для вашего бизнеса (назвать бизнес) <list>'"""
+    Список гарантировано подходит под тип бизнеса. Ответ выдай в формате: 'Вот список наиболее популярных мер поддержки для вашего бизнеса (назвать бизнес) <list>'"""
 }    
